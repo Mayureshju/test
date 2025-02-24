@@ -1,1 +1,1 @@
-import "./frappe/ui/form/form";
+import "./frappe/ui/form/base_input";
