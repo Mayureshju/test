@@ -7,7 +7,6 @@ frappe.ui.form.ControlInput.prototype.set_input_areas = function () {
         console.log("Overridden!", this);
         // hiding labels here
         
-        this.label_area.style.display = "none"
 
         // temporary thing to check
 
