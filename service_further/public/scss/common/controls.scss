@@ -364,10 +364,38 @@ textarea.form-control {
 	overflow-wrap: break-word;
 }
 
-.frappe-control[data-fieldtype="Data"] .control-input,
-.control-value {
-	position: relative;
+
+// changes made here
+
+.floating-input-wrapper {
+    position: relative;
 }
+
+.floating-input {
+    padding-top: 20px; /* Adjust for floating label */
+}
+
+.floating-label {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    transition: all 0.3s ease;
+    font-size: 14px;
+    color: #aaa;
+    pointer-events: none;
+}
+
+.floating-input:focus + .floating-label,
+.floating-input-wrapper.has-value .floating-label {
+    top: 5px;
+    font-size: 12px;
+    color: #007bff;
+}
+
+
+	  
+// to here
 
 .phone-btn {
 	position: absolute;
