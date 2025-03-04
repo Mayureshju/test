@@ -26,7 +26,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 app_include_css = ["desk_override.bundle.css"]
-app_include_js = ["service_further.bundle.js"]
+app_include_js = ["service_further.bundle.js","/assets/service_further/js/frappe/ui/form/controls/hello_button.js"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/service_further/css/service_further.css"
