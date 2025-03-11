@@ -43,5 +43,6 @@ $.extend(frappe.model, {
 		"Text Editor",
 		"Time",
         "ControlHelloButton",
+		"Entry Doctype"
     ],
 })

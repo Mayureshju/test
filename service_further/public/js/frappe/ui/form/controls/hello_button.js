@@ -1,4 +1,4 @@
-frappe.ui.form.ControlHelloButton = class ControlHelloButton extends frappe.ui.form.ControlData {
+frappe.ui.form.ControlHelloButtonsf = class ControlHelloButtonsf extends frappe.ui.form.ControlData {
 	can_write() {
 		// should be always true in case of button
 		return true;
