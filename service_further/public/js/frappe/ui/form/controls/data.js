@@ -88,11 +88,3 @@ frappe.ui.form.ControlData.prototype.make_input = function () {
         this.setup_barcode_field();
     }
 }
-
-frappe.ui.form.ControlData.prototype.set_input = function (value) {
-    this.last_value = this.value;
-    this.value = "hello->>>"+value;
-    this.set_formatted_input(value);
-    this.set_disp_area(value);
-    this.set_mandatory && this.set_mandatory(value);
-}
