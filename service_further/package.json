@@ -1,0 +1,14 @@
+{
+    "name": "service_further",
+    "version": "1.0.0",
+    "description": "Its a Service Further Tool",
+    "main": "index.js",
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+      "autoprefixer": "10",
+      "awesomplete": "^1.1.5"
+    }
+  }
+  

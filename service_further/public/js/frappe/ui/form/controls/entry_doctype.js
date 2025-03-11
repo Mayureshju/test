@@ -1,239 +1,298 @@
-// frappe.ui.form.ControlEntryDoctype = class ControlEntryDoctype extends frappe.ui.form.ControlLink {
-    
-//     can_write() {
-//         return true;
-//     }
-    
-//     // Ensure get_options always returns "DocType" for autocomplete
-//     get_options() {
-//         return "DocType";
-//     }
-    
-//     make_input() {
-//         // Call the parent's method to render the Link field with autocomplete
-//         super.make_input();
-
-//         // Ensure a label exists; if not, create one
-//         if (!this.$label || this.$label.length === 0) {
-//             this.$label = $('<label class="control-label">' + (this.df.label || '') + '</label>');
-//             this.$wrapper.prepend(this.$label);
-//         }
-        
-//         // Add a dummy focus_on_label method directly on the label element,
-//         // so that any call like this.$label.focus_on_label() doesn't error out.
-//         if (this.$label && !this.$label.focus_on_label) {
-//             this.$label.focus_on_label = function() {};
-//         }
-        
-//         // Also, set a dummy control-level method, if needed:
-//         if (!this.focus_on_label) {
-//             this.focus_on_label = () => {};
-//         }
-        
-//         // Create a container for quick entry fields below the main input
-//         this.$quick_entry_container = $('<div class="quick-entry-container" style="margin-top: 5px;"></div>')
-//             .appendTo(this.input_area);
-        
-//         // Bind change event: when a DocType is selected, load quick entry fields
-//         this.$input.on("change", () => {
-//             this.load_quick_entry_fields();
-//         });
-//     }
-    
-//     load_quick_entry_fields() {
-//         const selected_doctype = this.$input.val();
-//         if (!selected_doctype) return;
-        
-//         frappe.call({
-//             // Make sure this path matches your Python module path exactly
-//             method: "custom_controls.custom_data_entry.get_quick_entry_fields",
-//             args: { doctype: selected_doctype },
-//             callback: (r) => {
-//                 if (r.message) {
-//                     // Clear any previously rendered quick entry fields
-//                     this.$quick_entry_container.empty();
-                    
-//                     // Render each quick entry field (with a label and an input)
-//                     r.message.forEach((field) => {
-//                         let $field_wrapper = $('<div class="quick-entry-field" style="margin-bottom: 5px;"></div>');
-//                         $('<label style="display:block;">')
-//                             .text(field.label)
-//                             .appendTo($field_wrapper);
-//                         $('<input type="text" class="form-control" style="width:100%;">')
-//                             .attr("data-fieldname", field.fieldname)
-//                             .appendTo($field_wrapper);
-//                         this.$quick_entry_container.append($field_wrapper);
-//                     });
-//                 }
-//             }
-//         });
-//     }
-    
-//     // Override get_value to return an object with the main DocType and quick entry data
-//     get_value() {
-//         const main_val = this.$input.val();
-//         let quick_data = {};
-//         this.$quick_entry_container.find("input[data-fieldname]").each(function() {
-//             quick_data[$(this).attr("data-fieldname")] = $(this).val();
-//         });
-//         return { doctype: main_val, quick_entry: quick_data };
-//     }
-// };
-
-// // Register the custom control so that fields with type "Entry Doctype" use it
-// frappe.ui.form.ControlFactory.add("Entry Doctype", frappe.ui.form.ControlEntryDoctype);
-
-// console.log("Entry Doctype custom control loaded");
 frappe.ui.form.ControlEntryDoctype = class ControlEntryDoctype extends frappe.ui.form.ControlData {
     static trigger_change_on_input_event = false;
 
     make_input() {
         const me = this;
-        // Render the main link input field with an open button
-        $(`<div class="link-field ui-front" style="position: relative;">
-            <input type="text" class="input-with-feedback form-control">
-            <span class="link-btn" style="display: none;">
-                <a class="btn-open" style="display: inline-block;" title="${__("Open Link")}">
-                    ${frappe.utils.icon("arrow-right", "xs")}
-                </a>
-            </span>
-        </div>`).prependTo(this.input_area);
+        // Create the input structure
+        const $input_wrapper = $(`
+            <div class="link-field ui-front" style="position: relative;">
+                <input type="text" class="input-with-feedback form-control" placeholder="${__('Select Doctype')}">
+                <span class="link-btn">
+                    <a class="btn-clear no-decoration" title="${__('Clear')}">
+                        ${frappe.utils.icon("close", "xs")}
+                    </a>
+                    <a class="btn-open no-decoration" title="${__('Open Form')}">
+                        ${frappe.utils.icon("arrow-right", "xs")}
+                    </a>
+                </span>
+            </div>
+        `).prependTo(this.input_area);
 
         this.$input_area = $(this.input_area);
         this.$input = this.$input_area.find("input");
         this.$link = this.$input_area.find(".link-btn");
-        this.$link_open = this.$link.find(".btn-open");
-        this.set_input_attributes();
+        this.$btn_clear = this.$link.find(".btn-clear");
+        this.$btn_open = this.$link.find(".btn-open");
 
-        // Container for quick entry fields below the main input
+        // Quick entry container
         this.$quick_entry_container = $(`
-            <div class="quick-entry-container" style="margin-top: 10px; border: 1px solid #ddd; padding: 10px; border-radius: 3px;">
+            <div class="quick-entry-container" style="margin-top: 10px; border: 1px solid #d1d8dd; padding: 10px; border-radius: 4px; display: none;">
                 <div class="quick-entry-fields"></div>
+                <button class="btn btn-primary btn-sm save-quick-entry" style="margin-top: 10px;">${__('Save')}</button>
             </div>
         `).appendTo(this.input_area);
 
-        // Setup focus and blur event handlers
-        this.$input.on("focus", function () {
-            if (!me.$input.val()) {
-                me.$input.val("").trigger("input");
-            }
-            me.show_link_and_clear_buttons();
-        });
+        this.set_input_attributes();
 
-        this.$input.on("blur", function () {
-            setTimeout(function () {
-                me.$link.hide();
-                me.hide_link_and_clear_buttons();
-            }, 250);
-        });
+        // Defer event binding to ensure DOM is ready
+        setTimeout(() => {
+            this.bind_input_events();
+            this.setup_awesomeplete();
+            this.bind_change_event();
+        }, 0); // Next tick equivalent in plain JS
 
-        // Show/hide buttons on mouse enter/leave of the input area
-        this.$input_area.on("mouseenter", () => {
-            this.show_link_and_clear_buttons();
-        });
-        this.$input_area.on("mouseleave", () => {
-            if (!this.$input.is(":focus")) {
-                this.hide_link_and_clear_buttons();
-            }
-        });
-
-        this.$input.attr("data-target", this.df.options);
         this.input = this.$input.get(0);
         this.has_input = true;
-        this.translate_values = true;
 
-        // Call additional setup methods to avoid missing method errors
-        this.setup_buttons();
-        this.setup_awesomeplete();
-        this.bind_change_event();
-
-        // Bind change event to load quick entry fields when a DocType is selected
-        this.$input.on("change", () => {
-            this.load_quick_entry_fields();
-        });
+        // Add a focus_on_label method to the input wrapper for Vue compatibility
+        this.$input_area[0].focus_on_label = () => {
+            if (this.$input && this.$input.length) {
+                this.$input.focus(); // Focus the input as a fallback
+            } else {
+                console.warn("Input not available for focus_on_label");
+            }
+        };
     }
 
-    load_quick_entry_fields() {
-        const selected_doctype = this.$input.val();
-        if (!selected_doctype) return;
-
-        frappe.call({
-            method: "frappe.client.get_meta",
-            args: { doctype: selected_doctype },
-            callback: (r) => {
-                if (r.message) {
-                    const meta = r.message;
-                    // Filter for fields that are required or marked for quick entry
-                    const quick_entry_fields = meta.fields.filter(
-                        (field) => field.reqd || field.in_quick_entry
-                    );
-
-                    // Clear any previously rendered quick entry fields
-                    this.$quick_entry_container.find(".quick-entry-fields").empty();
-
-                    // Render each quick entry field with a label and input element
-                    quick_entry_fields.forEach((field) => {
-                        const $field_wrapper = $(`
-                            <div class="quick-entry-field" style="margin-bottom: 10px;">
-                                <label style="display: block; font-weight: bold; margin-bottom: 5px;">${field.label}</label>
-                                <input type="text" class="form-control" style="width: 100%;" data-fieldname="${field.fieldname}">
-                            </div>
-                        `);
-                        this.$quick_entry_container.find(".quick-entry-fields").append($field_wrapper);
-                    });
-                } else {
-                    frappe.msgprint(__("Failed to load quick entry fields"));
-                }
+    bind_input_events() {
+        this.$input.on({
+            focus: () => {
+                setTimeout(() => {
+                    if (this.$input.val()) {
+                        this.show_link_buttons();
+                    }
+                    if (!this.awesomplete.list.length) {
+                        this.load_doctype_list();
+                    }
+                }, 100);
             },
-            error: (err) => {
-                frappe.msgprint(__("An error occurred while fetching fields"));
-            }
+            blur: () => {
+                setTimeout(() => {
+                    if (!this.autocomplete_open) {
+                        this.hide_link_buttons();
+                    }
+                }, 300);
+            },
+            input: frappe.utils.debounce(() => this.load_quick_entry_fields(), 300)
         });
-    }
 
-    get_value() {
-        const main_val = this.$input.val();
-        let quick_data = {};
-        this.$quick_entry_container.find("input[data-fieldname]").each(function() {
-            quick_data[$(this).attr("data-fieldname")] = $(this).val();
+        this.$btn_clear.on("click", () => {
+            this.set_value(null);
+            this.$quick_entry_container.hide();
         });
-        return { doctype: main_val, quick_entry: quick_data };
-    }
 
-    // --- Dummy / Minimal Implementations for Missing Methods ---
-
-    setup_buttons() {
-        // Example: Bind click event on open button to navigate to the linked document
-        this.$link_open.on("click", () => {
-            const link = this.$input.val();
-            if (link) {
-                frappe.set_route("Form", this.df.options, link);
-            }
+        this.$quick_entry_container.find(".save-quick-entry").on("click", () => {
+            this.save_quick_entry();
         });
     }
 
     setup_awesomeplete() {
-        // If autocomplete is needed, initialize it here.
-        // Leaving as a no-op for now.
+        this.awesomplete = new Awesomplete(this.input, {
+            minChars: 0,
+            maxItems: 99,
+            autoFirst: true,
+            list: [],
+            data: (item) => ({
+                label: __(item.label || item.value),
+                value: item.value
+            }),
+            filter: () => true,
+            replace: function(item) {
+                this.input.value = item.label;
+            }
+        });
+
+        this.$input.on({
+            "awesomplete-selectcomplete": (e) => {
+                this.load_quick_entry_fields();
+            },
+            "awesomplete-open": () => {
+                this.autocomplete_open = true;
+            },
+            "awesomplete-close": () => {
+                this.autocomplete_open = false;
+            }
+        });
     }
 
-    bind_change_event() {
-        // Bind any additional change events as required.
-        // Leaving as a no-op for now.
+    load_doctype_list() {
+        frappe.call({
+            method: "frappe.desk.search.get_doctypes",
+            args: {
+                with_selectable: true,
+                include_standard: false
+            },
+            callback: (r) => {
+                if (r.message) {
+                    const doctypes = r.message.map(dt => ({
+                        label: __(dt),
+                        value: dt
+                    }));
+                    this.awesomplete.list = doctypes;
+                }
+            },
+            error: (err) => {
+                console.error("Failed to load doctypes:", err);
+            }
+        });
     }
 
-    show_link_and_clear_buttons() {
-        // Show the link button (and potentially a clear button if implemented)
-        this.$link.show();
+    load_quick_entry_fields() {
+        const doctype = this.$input.val();
+        if (!doctype) {
+            this.$quick_entry_container.hide();
+            return;
+        }
+
+        frappe.model.with_doctype(doctype, () => {
+            const meta = frappe.get_meta(doctype);
+            const quick_fields = meta.fields.filter(f =>
+                (f.reqd || f.in_quick_entry) &&
+                !["Section Break", "Column Break", "Tab Break"].includes(f.fieldtype)
+            );
+
+            this.$quick_entry_container.find(".quick-entry-fields").empty();
+
+            if (!quick_fields.length) {
+                this.$quick_entry_container.hide();
+                return;
+            }
+
+            quick_fields.forEach(field => {
+                const $field = this.create_field_input(field);
+                this.$quick_entry_container.find(".quick-entry-fields").append($field);
+            });
+
+            this.$quick_entry_container.show();
+            // Trigger an event for Vue to react to
+            this.$input_area.trigger("quick-entry-loaded");
+        });
     }
 
-    hide_link_and_clear_buttons() {
-        // Hide the link button (and clear button)
+    create_field_input(field) {
+        const fieldtype = field.fieldtype === "Check" ? "checkbox" : "text";
+        const required = field.reqd ? "required" : "";
+
+        return $(`
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label style="font-weight: 500; margin-bottom: 5px;">
+                    ${__(field.label || field.fieldname)}
+                    ${field.reqd ? '<span class="text-danger">*</span>' : ''}
+                </label>
+                <input 
+                    type="${fieldtype}" 
+                    class="form-control" 
+                    data-fieldname="${field.fieldname}" 
+                    ${required}
+                    ${field.options ? `data-options="${field.options}"` : ""}
+                    style="max-width: 100%;"
+                >
+            </div>
+        `);
+    }
+
+    save_quick_entry() {
+        const doctype = this.$input.val();
+        if (!doctype) return;
+
+        const data = { doctype };
+        this.$quick_entry_container.find("input").each(function() {
+            const $input = $(this);
+            const fieldname = $input.attr("data-fieldname");
+            data[fieldname] = $input.attr("type") === "checkbox" ?
+                $input.is(":checked") : $input.val();
+        });
+
+        frappe.call({
+            method: "frappe.desk.form.save.save_quick_entry",
+            args: {
+                doctype: doctype,
+                data: data
+            },
+            callback: (r) => {
+                if (r.message) {
+                    this.set_value(r.message.name);
+                    frappe.show_alert({
+                        message: __("Created successfully"),
+                        indicator: "green"
+                    });
+                }
+            },
+            error: (err) => {
+                frappe.msgprint({
+                    title: __("Error"),
+                    message: __("Failed to create {0}", [doctype]),
+                    indicator: "red"
+                });
+                console.error("Save quick entry failed:", err);
+            }
+        });
+    }
+
+    set_value(value) {
+        if (value && typeof value === "object") {
+            this.$input.val(value.doctype);
+            this.load_quick_entry_fields();
+            if (value.quick_entry) {
+                Object.entries(value.quick_entry).forEach(([fieldname, val]) => {
+                    const $input = this.$quick_entry_container
+                        .find(`input[data-fieldname="${fieldname}"]`);
+                    if ($input.length) { // Check if input exists
+                        if ($input.attr("type") === "checkbox") {
+                            $input.prop("checked", val);
+                        } else {
+                            $input.val(val);
+                        }
+                    }
+                });
+            }
+        } else {
+            this.$input.val(value || "");
+            this.$quick_entry_container.hide();
+        }
+        return this.validate_and_set_in_model(value).catch(err => {
+            console.error("Error in set_value:", err);
+            throw err; // Re-throw to maintain Frappe's error handling
+        });
+    }
+
+    get_value() {
+        const doctype = this.$input.val();
+        if (!doctype) return null;
+
+        const quick_data = {};
+        this.$quick_entry_container.find("input").each(function() {
+            const $input = $(this);
+            quick_data[$input.attr("data-fieldname")] =
+                $input.attr("type") === "checkbox" ? $input.is(":checked") : $input.val();
+        });
+
+        return { doctype, quick_entry: quick_data };
+    }
+
+    show_link_buttons() {
+        if (this.$input.val()) {
+            this.$link.show();
+            this.$btn_open.attr("href", frappe.utils.get_form_link(this.$input.val(), ""));
+        }
+    }
+
+    hide_link_buttons() {
         this.$link.hide();
     }
+
+    validate(value) {
+        if (!value || typeof value !== "object") return value;
+        return frappe.model.with_doctype(value.doctype, () => {
+            const meta = frappe.get_meta(value.doctype);
+            const required_fields = meta.fields.filter(f => f.reqd);
+            for (let field of required_fields) {
+                if (!(field.fieldname in value.quick_entry) || !value.quick_entry[field.fieldname]) {
+                    frappe.msgprint(__("{0} is required", [field.label]));
+                    return null;
+                }
+            }
+            return value;
+        });
+    }
 };
-
-// Register the custom control so that fields of type "Link" use it.
-frappe.ui.form.ControlFactory.add("Entry Doctype", frappe.ui.form.ControlEntryDoctype);
-
-console.log("Custom Link control with quick entry fields loaded");
